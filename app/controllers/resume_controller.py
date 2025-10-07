@@ -1,8 +1,6 @@
-from fastapi import APIRouter, UploadFile, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, UploadFile
 from app.schemas.resume_schema import JDRequest
-from app.services.resume_service import set_job_description, process_resume
-from app.configs.database import get_db
+from app.services.resume_service import set_job_description, process_resume, find_best_candidates
 
 router = APIRouter()
 
@@ -11,5 +9,9 @@ async def set_jd(request: JDRequest):
     return set_job_description(request.job_description)
 
 @router.post("/upload_resume/")
-async def upload_resume(file: UploadFile, db: Session = Depends(get_db)):
-    return process_resume(file.file, file.filename, db)
+async def upload_resume(file: UploadFile):
+    return process_resume(file.file, file.filename)
+
+@router.get("/top_candidates/")
+async def top_candidates():
+    return find_best_candidates()
