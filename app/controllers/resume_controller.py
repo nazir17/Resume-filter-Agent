@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile
 from app.schemas.resume_schema import JDRequest
 from app.services.resume_service import set_job_description, process_resume, find_best_candidates
+from app.services.resume_service import retrieve_candidates, get_ranked_candidates
 
 router = APIRouter()
 
@@ -15,3 +16,9 @@ async def upload_resume(file: UploadFile):
 @router.get("/top_candidates/")
 async def top_candidates():
     return find_best_candidates()
+
+@router.post("/rag_match/")
+async def rag_match(request: JDRequest):
+    top_candidates = retrieve_candidates(request.job_description)
+    analysis = get_ranked_candidates(request.job_description, top_candidates)
+    return {"result": analysis}
