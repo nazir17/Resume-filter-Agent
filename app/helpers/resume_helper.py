@@ -23,7 +23,7 @@ def extract_text_from_docx(file) -> str:
 
 
 
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2, google_api_key=google_api_key)
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.2, google_api_key=google_api_key)
 
 def analyze_resume(job_description: str, resume_text: str):
     prompt = f"""

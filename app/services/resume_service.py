@@ -1,5 +1,5 @@
 from app.helpers.resume_helper import analyze_resume, extract_text_from_pdf, extract_text_from_docx
-from app.helpers.embedding_helper import get_gemini_embedding
+from app.helpers.embedding_helper import get_embedding
 from app.configs.pinecone_config import index
 import uuid
 
@@ -9,7 +9,7 @@ job_description_vector = None
 def set_job_description(jd: str):
     global job_description_text, job_description_vector
     job_description_text = jd
-    job_description_vector = get_gemini_embedding(jd)
+    job_description_vector = get_embedding(jd)
     return {"message": "Job description set successfully"}
 
 def process_resume(file, filename: str):
@@ -27,7 +27,7 @@ def process_resume(file, filename: str):
     result = analyze_resume(job_description_text, resume_text)
 
     if result["fit"].lower() == "yes":
-        vector = get_gemini_embedding(resume_text)
+        vector = get_embedding(resume_text)
         candidate_id = str(uuid.uuid4())
 
         index.upsert(vectors=[{
