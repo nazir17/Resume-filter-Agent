@@ -10,6 +10,9 @@ load_dotenv()
 
 google_api_key = os.getenv("GOOGLE_API_KEY")
 
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2, google_api_key=google_api_key)
+
+
 def extract_text_from_pdf(file) -> str:
     reader = PyPDF2.PdfReader(file)
     text = ""
@@ -22,8 +25,6 @@ def extract_text_from_docx(file) -> str:
     return "\n".join([p.text for p in doc.paragraphs])
 
 
-
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.2, google_api_key=google_api_key)
 
 def analyze_resume(job_description: str, resume_text: str):
     prompt = f"""
@@ -58,3 +59,34 @@ def analyze_resume(job_description: str, resume_text: str):
         result = json.loads(text)
 
     return result
+
+
+
+def analyze_top_candidates(job_description: str, candidates: list):
+    candidate_texts = "\n\n".join([
+        f"Name: {c['metadata']['name']}\nSkills: {c['metadata']['skills']}\nMatch %: {c['metadata']['match_percentage']}"
+        for c in candidates
+    ])
+
+    prompt = f"""
+    You are a recruitment assistant.
+    Job Description: {job_description}
+
+    Candidate data:
+    {candidate_texts}
+
+    Task:
+    Rank the candidates by match percentage and give a short explanation why they are suitable.
+    Return ONLY JSON in this format:
+    [
+      {{
+        "name": "...",
+        "skills": [...],
+        "match_percentage": number,
+        "reason": "..."
+      }}
+    ]
+    """
+
+    response = llm.invoke(prompt)
+    return response.content
