@@ -4,12 +4,15 @@ import json
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
+from app.configs.database import SessionLocal
+from app.models.resume_model import Candidate
+from app.models.jd_model import JobDescription
+import uuid
 
 load_dotenv()
 
 
 google_api_key = os.getenv("GOOGLE_API_KEY")
-
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2, google_api_key=google_api_key)
 
 
@@ -61,32 +64,49 @@ def analyze_resume(job_description: str, resume_text: str):
     return result
 
 
+def save_jd_to_db(position: str, description: str):
+    db = SessionLocal()
+    jd_id = str(uuid.uuid4())
+    jd = JobDescription(id=jd_id, position=position, description=description)
+    db.add(jd)
+    db.commit()
+    db.refresh(jd)
+    db.close()
+    return jd
 
-def analyze_top_candidates(job_description: str, candidates: list):
-    candidate_texts = "\n\n".join([
-        f"Name: {c['metadata']['name']}\nSkills: {c['metadata']['skills']}\nMatch %: {c['metadata']['match_percentage']}"
+
+def save_candidate_to_db(result: dict, jd_id: str, position: str):
+    db = SessionLocal()
+    candidate = Candidate(
+        id=str(uuid.uuid4()),
+        name=result.get("name", "unknown"),
+        contact=result.get("contact", "unknown"),
+        skills=json.dumps(result.get("skills", [])),
+        match_percentage=result.get("match_percentage", 0),
+        reason=result.get("reason", ""),
+        jd_id=jd_id,
+        position=position
+    )
+    db.add(candidate)
+    db.commit()
+    db.refresh(candidate)
+    db.close()
+
+
+def fetch_top_candidates(top_k=5):
+    db = SessionLocal()
+    candidates = db.query(Candidate).order_by(Candidate.match_percentage.desc()).limit(top_k).all()
+    db.close()
+    results = [
+        {
+            "name": c.name,
+            "contact": c.contact,
+            "skills": json.loads(c.skills),
+            "match_percentage": c.match_percentage,
+            "reason": c.reason,
+            "position": c.position,
+            "jd_id": c.jd_id
+        }
         for c in candidates
-    ])
-
-    prompt = f"""
-    You are a recruitment assistant.
-    Job Description: {job_description}
-
-    Candidate data:
-    {candidate_texts}
-
-    Task:
-    Rank the candidates by match percentage and give a short explanation why they are suitable.
-    Return ONLY JSON in this format:
-    [
-      {{
-        "name": "...",
-        "skills": [...],
-        "match_percentage": number,
-        "reason": "..."
-      }}
     ]
-    """
-
-    response = llm.invoke(prompt)
-    return response.content
+    return results
